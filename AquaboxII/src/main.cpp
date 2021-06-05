@@ -1,5 +1,6 @@
 //AQUABOX - CUMBUCO
 //Sistema de irrigação automatizado.
+//Autor: Eng. José Adriano
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <Wire.h>
