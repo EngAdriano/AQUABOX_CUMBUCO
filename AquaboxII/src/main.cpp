@@ -35,6 +35,9 @@
 #define SETOR_2 18      //IO18 Pino 28 do Módulo
 #define SETOR_3 5       //IO5 Pino 29 do Módulo
 #define BOMBA 23        //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
+#define NIVEL_H 34      //Sensor de nível alto da caixa d'água
+#define NIVEL_L 35      //Sensor de nível baixo da caixa d'água
+#define UMIDADE 36      //Sensor de umidade
 
 //Variáveis globais
 int8_t funcaoAtiva = 0;
