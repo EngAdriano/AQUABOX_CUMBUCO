@@ -39,4 +39,4 @@ class ModuloRele
         bool state[N_RELAYS];
 };
 
-#endif // MODULORELE__HPP
+#endif // MODULORELE_HPP

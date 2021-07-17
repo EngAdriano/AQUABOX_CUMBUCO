@@ -8,6 +8,7 @@
 #include "RTClib.h"
 #include "ModuloRele.hpp"
 #include "EventButton.hpp"
+#include "CaixaDagua.hpp"
 
 #define SETORMAX 3
 #define HORAMAX 23
@@ -55,6 +56,7 @@ EventButton btnMais(BT_MAIS, LOW);
 EventButton btnSalva(BT_SALVA, LOW);
 EventButton btnEnter(BT_SELECT, LOW);
 EventButton btnVoltar(BT_VOLTA, LOW);
+CaixaDagua caixa(NIVEL_H, NIVEL_L);
 
 //Protótipo de funções
 void lerFuncaoAtiva(void);
@@ -112,6 +114,9 @@ void setup()
 
 void loop() 
 {
+
+  //TODO fazer a função de monitoramento e encher a caixa d'água.
+  
   lerFuncaoAtiva();
 
   switch (funcaoAtiva)
@@ -164,6 +169,11 @@ void lerFuncaoAtiva(void)
     }
     lcd.clear();
   }
+}
+
+void monitoraCaixa(void)
+{
+  
 }
 
 void standyBy(void)
