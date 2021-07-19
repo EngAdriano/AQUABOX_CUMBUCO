@@ -10,7 +10,7 @@
 #include "EventButton.hpp"
 #include "CaixaDagua.hpp"
 
-#define SETORMAX 3
+#define SETORMAX 2
 #define HORAMAX 23
 #define MINUTOSMAX 59
 #define DURACAOMAX 59
@@ -72,6 +72,7 @@ void consultaIrriga(void);
 void deleteIrriga(void);
 int8_t localizarPosicaoLivre(void);
 void InitEEPROM(void);
+void encheCaixa(void);
 
 void setup() 
 {
@@ -115,8 +116,6 @@ void setup()
 void loop() 
 {
 
-  //TODO fazer a função de monitoramento e encher a caixa d'água.
-  
   lerFuncaoAtiva();
 
   switch (funcaoAtiva)
@@ -147,7 +146,8 @@ void loop()
     break;
 
   case 5:
-     
+     //Aciona o enchimento da caixa d'água
+     encheCaixa();
     break;
   }
   
@@ -155,6 +155,17 @@ void loop()
 
 void lerFuncaoAtiva(void)
 {
+  //TODO fazer a função de monitoramento e encher a caixa d'água.
+  
+  if(!caixa.caixaVazia())
+  {
+    funcaoAtiva = 5;
+    lcd.clear();
+    //lcd.setCursor(0,1);
+    //lcd.print(" Enchendo Caixa ");
+    return;
+  }
+
   //Varredura no teclado
   btnEnter.process();
 
@@ -171,8 +182,30 @@ void lerFuncaoAtiva(void)
   }
 }
 
-void monitoraCaixa(void)
+void encheCaixa(void)
 {
+  //TODO fazer a rotina de encher a caixa
+  while (funcaoAtiva == 5)
+  {
+    if(!caixa.caixaCheia())
+    {
+      relays.off(3);
+      vTaskDelay(5000 / portTICK_PERIOD_MS);
+      relays.off(2);
+      funcaoAtiva = 0;
+    }
+    else
+    {
+      lcd.setCursor(0,0); 
+      lcd.print("Aquabox  Cumbuco");
+      lcd.setCursor(0,1);
+      lcd.print(" Enchendo Caixa ");
+
+      relays.on(2);
+      vTaskDelay(5000 / portTICK_PERIOD_MS);
+      relays.on(3);
+    }
+  }
   
 }
 
@@ -630,7 +663,7 @@ void configuraHoraSetorIrriga(void)
       case 0:
         setor++;
 
-        if(setor > 3)
+        if(setor > 2)
         {
           setor = 0;
         }
