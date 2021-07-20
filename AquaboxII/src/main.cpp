@@ -20,6 +20,7 @@
 #define NUMERO_DE_MEMORIAS 6
 #define NUMERO_DE_FUNCOES_ATIVAS 4
 #define ENDERECO_DO_NUMERO_DE_REGISTROS 0
+#define DELAY_RELES 3000
 
 // --- Mapeamento de Hardware --- 
 #define RS 33           //IO33 Pino 8 do Módulo
@@ -106,7 +107,7 @@ void setup()
   lcd.print ("INVENCTUS");
   lcd.setCursor(0,1); 
   lcd.print("AQUABOX  Cumbuco");
-  vTaskDelay(3000 / portTICK_PERIOD_MS);
+  vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
   lcd.clear();
 
   InitEEPROM();
@@ -190,7 +191,7 @@ void encheCaixa(void)
     if(!caixa.caixaCheia())
     {
       relays.off(3);
-      vTaskDelay(5000 / portTICK_PERIOD_MS);
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
       relays.off(2);
       funcaoAtiva = 0;
     }
@@ -202,7 +203,7 @@ void encheCaixa(void)
       lcd.print(" Enchendo Caixa ");
 
       relays.on(2);
-      vTaskDelay(5000 / portTICK_PERIOD_MS);
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
       relays.on(3);
     }
   }
@@ -350,7 +351,7 @@ void irrigacao()
     {
       //Liga relés
       relays.on(setor - 1);                   //Liga a válvula do setor requerido
-      vTaskDelay(5000 / portTICK_PERIOD_MS);  //Aguarda um tempo para afetivação da válvula
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);  //Aguarda um tempo para afetivação da válvula
       relays.on(3);                           //Liga a bomba de água
       reles = false;                          //Evita de ficar chamando as funções dos relés.
     }
@@ -375,7 +376,7 @@ void irrigacao()
       funcaoAtiva = 0;
       irrigandoJardim = false;
       relays.off(3);                          //Desliga a bomba
-      vTaskDelay(5000 / portTICK_PERIOD_MS);  //Tempo de acomodação da água
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);  //Tempo de acomodação da água
       relays.off(setor - 1);
       lcd.clear();
     }
