@@ -14,11 +14,13 @@
 #define HORAMAX 23
 #define MINUTOSMAX 59
 #define DURACAOMAX 59
-#define EEPROM_TAMANHO 26
+#define EEPROM_TAMANHO 34
 #define EEPROM_INICIO 0
+#define EEPROM_INICIO_SEMANA 27
+#define EEPROM_TAMANHO_SEMANA 7
 #define OFFSET 4
 #define NUMERO_DE_MEMORIAS 6
-#define NUMERO_DE_FUNCOES_ATIVAS 4
+#define NUMERO_DE_FUNCOES_ATIVAS 5
 #define ENDERECO_DO_NUMERO_DE_REGISTROS 0
 #define DELAY_RELES 3000
 
@@ -29,17 +31,17 @@
 #define D5 27           //IO27 Pino 11 do Módulo
 #define D6 26           //IO26 Pino 10 do Módulo
 #define D7 25           //IO25 Pino 9 do Módulo
-#define BT_SELECT   17  //Conector select(Key1)/Pino 30 do módulo
+#define BT_SELECT  17   //Conector select(Key1)/Pino 30 do módulo
 #define BT_SALVA   13   //Conector menos(Menos)/Pino 15 do Módulo
 #define BT_MAIS    16   //Conector mais(Key2)/Pino 31 do Módulo
 #define BT_VOLTA   4    //Conector voltar(Key3)/Pino 31 do Módulo
-#define SETOR_1 19      //IO19 Pino 27 do Módulo
-#define SETOR_2 18      //IO18 Pino 28 do Módulo
-#define SETOR_3 5       //IO5 Pino 29 do Módulo
-#define BOMBA 23        //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
-#define NIVEL_H 34      //Sensor de nível alto da caixa d'água
-#define NIVEL_L 35      //Sensor de nível baixo da caixa d'água
-#define UMIDADE 36      //Sensor de umidade
+#define SETOR_1    19   //IO19 Pino 27 do Módulo
+#define SETOR_2    18   //IO18 Pino 28 do Módulo
+#define SETOR_3    5    //IO5 Pino 29 do Módulo
+#define BOMBA      23   //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
+#define NIVEL_H    34   //Sensor de nível alto da caixa d'água
+#define NIVEL_L    35   //Sensor de nível baixo da caixa d'água
+#define UMIDADE    36   //Sensor de umidade
 
 //Variáveis globais
 int8_t funcaoAtiva = 0;
@@ -74,7 +76,8 @@ void deleteIrriga(void);
 int8_t localizarPosicaoLivre(void);
 void InitEEPROM(void);
 void encheCaixa(void);
-
+void diaDaSemana(void);
+void mostraSemana(char *pt);
 void setup() 
 {
   relays.offAll();
@@ -147,9 +150,14 @@ void loop()
     break;
 
   case 5:
-     //Aciona o enchimento da caixa d'água
-     encheCaixa();
+     //Configuração do(s) dia(s) da semana para irrigação
+     diaDaSemana();
     break;
+
+  case 6:
+    //Aciona o enchimento da caixa d'água
+     encheCaixa();
+     break;
   }
   
 }
@@ -160,10 +168,8 @@ void lerFuncaoAtiva(void)
   
   if(!caixa.caixaVazia())
   {
-    funcaoAtiva = 5;
+    funcaoAtiva = 6;
     lcd.clear();
-    //lcd.setCursor(0,1);
-    //lcd.print(" Enchendo Caixa ");
     return;
   }
 
@@ -186,7 +192,7 @@ void lerFuncaoAtiva(void)
 void encheCaixa(void)
 {
   //TODO fazer a rotina de encher a caixa
-  while (funcaoAtiva == 5)
+  while (funcaoAtiva == 6)
   {
     if(!caixa.caixaCheia())
     {
@@ -989,6 +995,81 @@ void deleteIrriga(void)
     lcd.print(numRegistros);
     */
   }
+}
+
+void diaDaSemana(void)
+{
+  //Configurar o(s) dia(s) da semana que o sistema irriga
+  static char confSemana[7] = {0,0,0,0,0,0,0};
+  char *ptConfSemana;
+  const char offSetSemana = 27;
+
+  ptConfSemana = confSemana;
+
+  lcd.clear();
+  lcd.setCursor(0,0); 
+  lcd.print("Semana:         ");
+  lcd.setCursor(0,1); 
+  lcd.print(" D0S1T0Q0Q0S0S0 ");  //Não esquecer de Alterar para zero
+
+  for(int i = 0; i < EEPROM_TAMANHO_SEMANA; i++)
+      {
+        confSemana[i] = EEPROM.read(offSetSemana + i);
+      }
+
+  mostraSemana(ptConfSemana);
+
+  while(funcaoAtiva == 5)
+  {
+    btnMais.process();
+    btnSalva.process();
+    btnEnter.process();
+    btnVoltar.process();
+
+    lerFuncaoAtiva();
+
+    if(btnEnterFlag)
+    {
+      funcaoAtiva++;
+      
+      if(funcaoAtiva > NUMERO_DE_FUNCOES_ATIVAS)
+      {
+        funcaoAtiva = 0;
+      }
+      lcd.clear();
+      btnEnterFlag = false;
+      btnMaisFlag = false;
+      btnSelectFlag = false;
+      btnVoltaFlag = false;
+    }
+
+    if(btnVoltaFlag)
+    {
+      funcaoAtiva = 0;
+  
+      btnVoltaFlag = false;
+      lcd.clear();
+    }
+
+  }
+}
+
+void mostraSemana(char *pt)
+{
+  lcd.setCursor(2,1);
+  lcd.print((*(pt + 0)/1));
+  lcd.setCursor(4,1);
+  lcd.print((*(pt + 1)/1));
+  lcd.setCursor(6,1);
+  lcd.print((*(pt + 2)/1));
+  lcd.setCursor(8,1);
+  lcd.print((*(pt + 3)/1));
+  lcd.setCursor(10,1);
+  lcd.print((*(pt + 4)/1));
+  lcd.setCursor(12,1);
+  lcd.print((*(pt + 5)/1));
+  lcd.setCursor(14,1);
+  lcd.print((*(pt + 6)/1));
 }
 
 int8_t localizarPosicaoLivre(void)    //Localiza posição livre para armazenar horário/setor de irrigação
