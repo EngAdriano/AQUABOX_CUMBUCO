@@ -78,6 +78,8 @@ void InitEEPROM(void);
 void encheCaixa(void);
 void diaDaSemana(void);
 void mostraSemana(char *pt);
+bool semanaDia(void);
+
 void setup() 
 {
   relays.offAll();
@@ -164,9 +166,13 @@ void loop()
 
 void lerFuncaoAtiva(void)
 {
-  //TODO fazer a função de monitoramento e encher a caixa d'água.
+  //TODO fazer função para leitura do sensor de umidade.
+
+  bool statusDiaSemana = 1;
+
+  statusDiaSemana = semanaDia();
   
-  if(!caixa.caixaVazia())
+  if((!caixa.caixaVazia()) && statusDiaSemana == true)
   {
     funcaoAtiva = 6;
     lcd.clear();
@@ -187,6 +193,22 @@ void lerFuncaoAtiva(void)
     }
     lcd.clear();
   }
+}
+
+bool semanaDia(void)
+{
+  uint8_t statusDiaSemana = 0;
+  uint8_t diaDaSemana = 0;
+
+  DateTime now;
+  now = rtc.now();
+
+  //Semana: dom = 0 ... sab = 7
+  diaDaSemana = now.dayOfTheWeek();
+
+  statusDiaSemana = EEPROM.read(EEPROM_INICIO_SEMANA + diaDaSemana);
+
+  return statusDiaSemana;
 }
 
 void encheCaixa(void)
@@ -1002,7 +1024,7 @@ void diaDaSemana(void)
   //Configurar o(s) dia(s) da semana que o sistema irriga
   static char confSemana[7] = {0,0,0,0,0,0,0};
   char *ptConfSemana;
-  const char offSetSemana = 27;
+  uint8_t mudaSemana[7] = {1, 1, 1, 1, 1, 1, 1};
 
   ptConfSemana = confSemana;
 
@@ -1010,11 +1032,11 @@ void diaDaSemana(void)
   lcd.setCursor(0,0); 
   lcd.print("Semana:         ");
   lcd.setCursor(0,1); 
-  lcd.print(" D0S1T0Q0Q0S0S0 ");  //Não esquecer de Alterar para zero
+  lcd.print(" D0S0T0Q0Q0S0S0 ");  //Não esquecer de Alterar para zero
 
   for(int i = 0; i < EEPROM_TAMANHO_SEMANA; i++)
       {
-        confSemana[i] = EEPROM.read(offSetSemana + i);
+        confSemana[i] = EEPROM.read(EEPROM_INICIO_SEMANA + i);
       }
 
   mostraSemana(ptConfSemana);
@@ -1027,6 +1049,16 @@ void diaDaSemana(void)
     btnVoltar.process();
 
     lerFuncaoAtiva();
+
+    if(btnMaisFlag)
+    {
+      //TODO fazer a configuração em memória
+    }
+
+    if(btnSelectFlag)
+    {
+      //TODO fazer a gravação na EEPROM
+    }
 
     if(btnEnterFlag)
     {
@@ -1102,6 +1134,12 @@ void InitEEPROM(void)               //Roda apenas uma vez, quando módulo for re
     {
       EEPROM.write(i,0);
     }
+
+    for(int i = EEPROM_INICIO_SEMANA; i < EEPROM_INICIO_SEMANA + EEPROM_TAMANHO_SEMANA; i++)
+    {
+      EEPROM.write(i,1);
+    }
+
     EEPROM.commit();
   }
   lcd.clear();
