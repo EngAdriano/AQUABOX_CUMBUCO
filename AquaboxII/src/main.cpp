@@ -10,38 +10,40 @@
 #include "EventButton.hpp"
 #include "CaixaDagua.hpp"
 
-#define SETORMAX 2
-#define HORAMAX 23
-#define MINUTOSMAX 59
-#define DURACAOMAX 59
-#define EEPROM_TAMANHO 34
-#define EEPROM_INICIO 0
-#define EEPROM_INICIO_SEMANA 27
-#define EEPROM_TAMANHO_SEMANA 7
-#define OFFSET 4
-#define NUMERO_DE_MEMORIAS 6
-#define NUMERO_DE_FUNCOES_ATIVAS 5
-#define ENDERECO_DO_NUMERO_DE_REGISTROS 0
-#define DELAY_RELES 3000
+#define SETORMAX (2)
+#define HORAMAX (23)
+#define MINUTOSMAX (59)
+#define DURACAOMAX (59)
+#define EEPROM_TAMANHO (34)
+#define EEPROM_INICIO (0)
+#define EEPROM_INICIO_SEMANA (27)
+#define EEPROM_TAMANHO_SEMANA (7)
+#define OFFSET (4)
+#define NUMERO_DE_MEMORIAS (6)
+#define NUMERO_DE_FUNCOES_ATIVAS (5)
+#define ENDERECO_DO_NUMERO_DE_REGISTROS (0)
+#define DELAY_RELES (3000)
 
 // --- Mapeamento de Hardware --- 
-#define RS 33           //IO33 Pino 8 do Módulo
-#define EN 32           //IO32 Pino 7 do Módulo
-#define D4 14           //IO14 Pino 12 do Módulo
-#define D5 27           //IO27 Pino 11 do Módulo
-#define D6 26           //IO26 Pino 10 do Módulo
-#define D7 25           //IO25 Pino 9 do Módulo
-#define BT_SELECT  17   //Conector select(Key1)/Pino 30 do módulo
-#define BT_SALVA   13   //Conector menos(Menos)/Pino 15 do Módulo
-#define BT_MAIS    16   //Conector mais(Key2)/Pino 31 do Módulo
-#define BT_VOLTA   4    //Conector voltar(Key3)/Pino 31 do Módulo
-#define SETOR_1    19   //IO19 Pino 27 do Módulo
-#define SETOR_2    18   //IO18 Pino 28 do Módulo
-#define SETOR_3    5    //IO5 Pino 29 do Módulo
-#define BOMBA      23   //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
-#define NIVEL_H    34   //Sensor de nível alto da caixa d'água
-#define NIVEL_L    35   //Sensor de nível baixo da caixa d'água
-#define UMIDADE    36   //Sensor de umidade
+#define RS (33)           //IO33 Pino 8 do Módulo
+#define EN (32)           //IO32 Pino 7 do Módulo
+#define D4 (14)           //IO14 Pino 12 do Módulo
+#define D5 (27)           //IO27 Pino 11 do Módulo
+#define D6 (26)           //IO26 Pino 10 do Módulo
+#define D7 (25)           //IO25 Pino 9 do Módulo
+#define ON_OFF (7)      //Aciona motor e passa sistema para manual
+#define AUTO_MAN (9)    //Seleciona Modo Automático ou Manual
+#define BT_SELECT  (17)   //Conector select(Key1)/Pino 30 do módulo
+#define BT_SALVA   (13)   //Conector menos(Menos)/Pino 15 do Módulo
+#define BT_MAIS    (16)   //Conector mais(Key2)/Pino 31 do Módulo
+#define BT_VOLTA   (4)    //Conector voltar(Key3)/Pino 32 do Módulo
+#define SETOR_1    (19)   //IO19 Pino 27 do Módulo
+#define SETOR_2    (18)   //IO18 Pino 28 do Módulo
+#define SETOR_3    (5)    //IO5 Pino 29 do Módulo
+#define BOMBA      (23)   //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
+#define NIVEL_H    (34)   //Sensor de nível alto da caixa d'água
+#define NIVEL_L    (35)   //Sensor de nível baixo da caixa d'água
+#define UMIDADE    (36)   //Sensor de umidade
 
 //Variáveis globais
 int8_t funcaoAtiva = 0;
@@ -167,12 +169,8 @@ void loop()
 void lerFuncaoAtiva(void)
 {
   //TODO fazer função para leitura do sensor de umidade.
-
-  bool statusDiaSemana = 1;
-
-  statusDiaSemana = semanaDia();
   
-  if((!caixa.caixaVazia()) && statusDiaSemana == true)
+  if(!caixa.caixaVazia())
   {
     funcaoAtiva = 6;
     lcd.clear();
@@ -327,8 +325,14 @@ void standyBy(void)
       if((setor != 0) && (hora == now.hour()) && (minutos == now.minute()))
       {
         posicaoRelativaEEPROM = i;
-        irrigacao();
-        
+        bool statusDiaSemana = 1;
+
+        statusDiaSemana = semanaDia();    //Checa se o dia da semana é válido para irrigar
+
+        if(statusDiaSemana == true)
+        {
+          irrigacao();
+        }
       }
     }
 
@@ -378,10 +382,10 @@ void irrigacao()
     if(reles == true)
     {
       //Liga relés
-      relays.on(setor - 1);                   //Liga a válvula do setor requerido
-      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);  //Aguarda um tempo para afetivação da válvula
-      relays.on(3);                           //Liga a bomba de água
-      reles = false;                          //Evita de ficar chamando as funções dos relés.
+      relays.on(setor - 1);                           //Liga a válvula do setor requerido
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);   //Aguarda um tempo para afetivação da válvula
+      relays.on(3);                                   //Liga a bomba de água
+      reles = false;                                  //Evita de ficar chamando as funções dos relés.
     }
 
     now = rtc.now();
@@ -403,7 +407,7 @@ void irrigacao()
     {
       funcaoAtiva = 0;
       irrigandoJardim = false;
-      relays.off(3);                          //Desliga a bomba
+      relays.off(3);                                  //Desliga a bomba
       vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);  //Tempo de acomodação da água
       relays.off(setor - 1);
       lcd.clear();
@@ -1024,7 +1028,7 @@ void diaDaSemana(void)
   //Configurar o(s) dia(s) da semana que o sistema irriga
   static char confSemana[7] = {0,0,0,0,0,0,0};
   char *ptConfSemana;
-  uint8_t mudaSemana[7] = {1, 1, 1, 1, 1, 1, 1};
+  uint8_t mudaSemana[7] = {1, 1, 1, 1, 1, 1, 1}; //Vou utilizar para mudar o valor de 0 ou 1 do dia da semana
 
   ptConfSemana = confSemana;
 
