@@ -25,29 +25,31 @@
 #define DELAY_RELES (3000)
 
 // --- Mapeamento de Hardware --- 
-#define RS (33)           //IO33 Pino 8 do Módulo
-#define EN (32)           //IO32 Pino 7 do Módulo
-#define D4 (14)           //IO14 Pino 12 do Módulo
-#define D5 (27)           //IO27 Pino 11 do Módulo
-#define D6 (26)           //IO26 Pino 10 do Módulo
-#define D7 (25)           //IO25 Pino 9 do Módulo
-#define ON_OFF (7)      //Aciona motor e passa sistema para manual
-#define AUTO_MAN (9)    //Seleciona Modo Automático ou Manual
-#define BT_SELECT  (17)   //Conector select(Key1)/Pino 30 do módulo
-#define BT_SALVA   (13)   //Conector menos(Menos)/Pino 15 do Módulo
-#define BT_MAIS    (16)   //Conector mais(Key2)/Pino 31 do Módulo
-#define BT_VOLTA   (4)    //Conector voltar(Key3)/Pino 32 do Módulo
-#define SETOR_1    (19)   //IO19 Pino 27 do Módulo
-#define SETOR_2    (18)   //IO18 Pino 28 do Módulo
-#define SETOR_3    (5)    //IO5 Pino 29 do Módulo
-#define BOMBA      (23)   //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
-#define NIVEL_H    (34)   //Sensor de nível alto da caixa d'água
-#define NIVEL_L    (35)   //Sensor de nível baixo da caixa d'água
-#define UMIDADE    (36)   //Sensor de umidade
+#define RS          (33)   //IO33 Pino 8 do Módulo
+#define EN          (32)   //IO32 Pino 7 do Módulo
+#define D4          (14)   //IO14 Pino 12 do Módulo
+#define D5          (27)   //IO27 Pino 11 do Módulo
+#define D6          (26)   //IO26 Pino 10 do Módulo
+#define D7          (25)   //IO25 Pino 9 do Módulo
+#define ON_OFF      (15)    //Aciona motor e para tratamento piscina
+#define AUTO_MAN    (0)    //Seleciona Modo Automático ou Manual
+#define BT_SELECT  (17)    //Conector select(Key1)/Pino 30 do módulo
+#define BT_SALVA   (13)    //Conector menos(Menos)/Pino 15 do Módulo
+#define BT_MAIS    (16)    //Conector mais(Key2)/Pino 31 do Módulo
+#define BT_VOLTA   (4)     //Conector voltar(Key3)/Pino 32 do Módulo
+#define SETOR_1    (19)    //IO19 Pino 27 do Módulo
+#define SETOR_2    (18)    //IO18 Pino 28 do Módulo
+#define SETOR_3    (5)     //IO5 Pino 29 do Módulo
+#define BOMBA      (23)    //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
+#define NIVEL_H    (34)    //Sensor de nível alto da caixa d'água
+#define NIVEL_L    (35)    //Sensor de nível baixo da caixa d'água
+#define UMIDADE    (36)    //Sensor de umidade
 
 //Variáveis globais
 int8_t funcaoAtiva = 0;
 uint8_t posicaoRelativaEEPROM = 0;
+bool btnBombaPiscinaFlag = false;
+bool btnAutoManFlag = false;
 bool btnMaisFlag = false;   //Flag para botão Mais
 bool btnSelectFlag = false; //Flag para botão Menos
 bool btnEnterFlag = false;  //Flag para botão Enter
@@ -56,7 +58,9 @@ bool btnVoltaFlag = false;  //Flag para botão Volta
 //Objetos utilizados
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
 RTC_DS3231 rtc;
-ModuloRele relays(SETOR_1, SETOR_2, SETOR_3, BOMBA, true);           
+ModuloRele relays(SETOR_1, SETOR_2, SETOR_3, BOMBA, true);
+EventButton btnBombaPiscina(ON_OFF, LOW);
+EventButton btnAutoMan(AUTO_MAN, LOW);           
 EventButton btnMais(BT_MAIS, LOW);
 EventButton btnSalva(BT_SALVA, LOW);
 EventButton btnEnter(BT_SELECT, LOW);
@@ -81,6 +85,12 @@ void encheCaixa(void);
 void diaDaSemana(void);
 void mostraSemana(char *pt);
 bool semanaDia(void);
+void BtnOnPiscina(void);
+void BtnOffPiscina(void);
+void BtnOnAutoMan(void);
+void BtnOffAutoMan(void);
+void AcionaMotor(void);
+void manualAutomatico(void);
 
 void setup() 
 {
@@ -99,6 +109,12 @@ void setup()
         while (1);
     }
 //Registra os callbacks das teclas
+    btnBombaPiscina.setOnPressCallback(&BtnOnPiscina);
+    btnBombaPiscina.setOnReleaseCallback(&BtnOffPiscina);
+
+    btnAutoMan.setOnPressCallback(&BtnOnAutoMan);
+    btnAutoMan.setOnReleaseCallback(&BtnOffAutoMan);
+
     btnSalva.setOnPressCallback(&BtnPressionadoMenos);
     //btnMenos.setOnReleaseCallback(&btnSoltoMenos);
     btnMais.setOnPressCallback(&BtnPressionadoMais);
@@ -123,47 +139,58 @@ void setup()
 
 void loop() 
 {
+  //bool bombaPiscina = false; ligar motos para manutençãod da piscina
+  //bool autoMan = false; colocar em modo automático ou manual o sistema
 
-  lerFuncaoAtiva();
+    lerFuncaoAtiva();
 
-  switch (funcaoAtiva)
-  {
-  case 0:
-    //Modo de espera por comandos
-    standyBy();
-    break;
+    switch (funcaoAtiva)
+    {
+    case 0:
+      //Modo de espera por comandos
+      standyBy();
+      break;
 
-  case 1:
-    //Consulta do horário/setor de inrrigação
-    consultaIrriga();
-    break;
+    case 1:
+      //Consulta do horário/setor de inrrigação
+      consultaIrriga();
+      break;
 
-  case 2:
-    //Configuração do relógio
-    configuraRelogio();
-    break;
+    case 2:
+      //Configuração do relógio
+      configuraRelogio();
+      break;
 
-  case 3:
-    //Configuração dos horários/setor de Irrigação
-    configuraHoraSetorIrriga();
-    break;
+    case 3:
+      //Configuração dos horários/setor de Irrigação
+      configuraHoraSetorIrriga();
+      break;
 
-  case 4:
-    //Altera do horário/setor de inrrigação
-    deleteIrriga();
-    break;
+    case 4:
+      //Altera do horário/setor de inrrigação
+      deleteIrriga();
+      break;
 
-  case 5:
-     //Configuração do(s) dia(s) da semana para irrigação
-     diaDaSemana();
-    break;
+    case 5:
+      //Configuração do(s) dia(s) da semana para irrigação
+      diaDaSemana();
+      break;
 
-  case 6:
-    //Aciona o enchimento da caixa d'água
-     encheCaixa();
-     break;
-  }
-  
+    case 6:
+      AcionaMotor();
+      break;
+
+    case 7:
+      manualAutomatico();
+      break;
+
+    case 8:
+      //Aciona o enchimento da caixa d'água
+      encheCaixa();
+      break;
+
+    
+    }
 }
 
 void lerFuncaoAtiva(void)
@@ -172,12 +199,24 @@ void lerFuncaoAtiva(void)
   
   if(!caixa.caixaVazia())
   {
-    funcaoAtiva = 6;
+    funcaoAtiva = 8;
     lcd.clear();
     return;
   }
 
   //Varredura no teclado
+  btnAutoMan.process();
+  if(btnBombaPiscinaFlag == true)
+  {
+    funcaoAtiva = 6;
+  }
+
+  btnBombaPiscina.process();
+  if(btnAutoManFlag == true)
+  {
+    funcaoAtiva = 7;
+  }
+
   btnEnter.process();
 
   if(btnEnterFlag)
@@ -1023,6 +1062,47 @@ void deleteIrriga(void)
   }
 }
 
+void AcionaMotor(void)
+{
+  while (funcaoAtiva == 6)
+  {
+    btnBombaPiscina.process();
+    if(btnBombaPiscinaFlag == true)
+    {
+      lcd.setCursor(0,0); 
+      lcd.print("Aquabox  Cumbuco");
+      lcd.setCursor(0,1);
+      lcd.print("  Bomba Ligada  ");
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      relays.on(3);
+    }
+    else
+    {
+      relays.off(3);
+      funcaoAtiva = 0;
+    }
+  }
+}
+    
+void manualAutomatico(void)
+{
+  while (funcaoAtiva == 7)
+  {
+    btnAutoMan.process();
+    if(btnAutoManFlag == true)
+    {
+      lcd.setCursor(0,0); 
+      lcd.print("Aquabox  Cumbuco");
+      lcd.setCursor(0,1);
+      lcd.print("  Modo  Manual  ");
+    }
+    else
+    {
+      funcaoAtiva = 0;
+    }
+  }
+}
+
 void diaDaSemana(void)
 {
   //Configurar o(s) dia(s) da semana que o sistema irriga
@@ -1147,6 +1227,26 @@ void InitEEPROM(void)               //Roda apenas uma vez, quando módulo for re
     EEPROM.commit();
   }
   lcd.clear();
+}
+
+void BtnOnPiscina(void)
+{
+  btnBombaPiscinaFlag = true;     //Ligar motor para tratamento da piscina
+}
+
+void BtnOffPiscina(void)
+{
+  btnBombaPiscinaFlag = false;     //Desligar motor para tratamento da piscina
+}
+
+void BtnOnAutoMan(void)
+{
+  btnAutoManFlag = true;        //Modo automático ou manual
+}
+
+void BtnOffAutoMan(void)
+{
+  btnAutoManFlag = false;        //Modo automático ou manual
 }
 
 void BtnPressionadoMais(void)
