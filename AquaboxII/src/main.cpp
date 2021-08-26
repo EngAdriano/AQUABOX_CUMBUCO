@@ -33,17 +33,17 @@
 #define D7          (25)   //IO25 Pino 9 do Módulo
 #define ON_OFF      (15)    //Aciona motor e para tratamento piscina
 #define AUTO_MAN    (0)    //Seleciona Modo Automático ou Manual
-#define BT_SELECT  (17)    //Conector select(Key1)/Pino 30 do módulo
-#define BT_SALVA   (13)    //Conector menos(Menos)/Pino 15 do Módulo
-#define BT_MAIS    (16)    //Conector mais(Key2)/Pino 31 do Módulo
-#define BT_VOLTA   (4)     //Conector voltar(Key3)/Pino 32 do Módulo
-#define SETOR_1    (19)    //IO19 Pino 27 do Módulo
-#define SETOR_2    (18)    //IO18 Pino 28 do Módulo
-#define SETOR_3    (5)     //IO5 Pino 29 do Módulo
-#define BOMBA      (23)    //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
-#define NIVEL_H    (34)    //Sensor de nível alto da caixa d'água
-#define NIVEL_L    (35)    //Sensor de nível baixo da caixa d'água
-#define UMIDADE    (36)    //Sensor de umidade
+#define BT_SELECT   (17)    //Conector select(Key1)/Pino 30 do módulo
+#define BT_SALVA    (13)    //Conector menos(Menos)/Pino 15 do Módulo
+#define BT_MAIS     (16)    //Conector mais(Key2)/Pino 31 do Módulo
+#define BT_VOLTA    (4)     //Conector voltar(Key3)/Pino 32 do Módulo
+#define SETOR_1     (19)    //IO19 Pino 27 do Módulo
+#define SETOR_2     (18)    //IO18 Pino 28 do Módulo
+#define SETOR_3     (5)     //IO5 Pino 29 do Módulo
+#define BOMBA       (23)    //IO23 Pino 21 do Módulo - Antigo 7(SD0)  
+#define NIVEL_H     (34)    //Sensor de nível alto da caixa d'água
+#define NIVEL_L     (35)    //Sensor de nível baixo da caixa d'água
+#define UMIDADE     (36)    //Sensor de umidade
 
 //Variáveis globais
 int8_t funcaoAtiva = 0;
