@@ -139,9 +139,6 @@ void setup()
 
 void loop() 
 {
-  //bool bombaPiscina = false; ligar motos para manutençãod da piscina
-  //bool autoMan = false; colocar em modo automático ou manual o sistema
-
     lerFuncaoAtiva();
 
     switch (funcaoAtiva)
@@ -187,9 +184,7 @@ void loop()
     case 8:
       //Aciona o enchimento da caixa d'água
       encheCaixa();
-      break;
-
-    
+      break;    
     }
 }
 
@@ -250,8 +245,7 @@ bool semanaDia(void)
 
 void encheCaixa(void)
 {
-  //TODO fazer a rotina de encher a caixa
-  while (funcaoAtiva == 6)
+  while (funcaoAtiva == 8)
   {
     if(!caixa.caixaCheia())
     {
@@ -1108,15 +1102,14 @@ void diaDaSemana(void)
   //Configurar o(s) dia(s) da semana que o sistema irriga
   static char confSemana[7] = {0,0,0,0,0,0,0};
   char *ptConfSemana;
-  uint8_t mudaSemana[7] = {1, 1, 1, 1, 1, 1, 1}; //Vou utilizar para mudar o valor de 0 ou 1 do dia da semana
-
+  static int8_t cont = -1;
   ptConfSemana = confSemana;
 
   lcd.clear();
   lcd.setCursor(0,0); 
   lcd.print("Semana:         ");
   lcd.setCursor(0,1); 
-  lcd.print(" D0S0T0Q0Q0S0S0 ");  //Não esquecer de Alterar para zero
+  lcd.print(" D1S1T0Q1Q0S1S0 ");  //Não esquecer de Alterar para zero
 
   for(int i = 0; i < EEPROM_TAMANHO_SEMANA; i++)
       {
@@ -1137,11 +1130,105 @@ void diaDaSemana(void)
     if(btnMaisFlag)
     {
       //TODO fazer a configuração em memória
+     switch (cont)
+     {
+      case 0:
+        confSemana[0] = (!confSemana[0]);
+        mostraSemana(ptConfSemana);
+        break;
+
+      case 1:
+        confSemana[1] = (!confSemana[1]);
+        mostraSemana(ptConfSemana);
+        break;
+    
+      case 2:
+        confSemana[2] = (!confSemana[2]);
+        mostraSemana(ptConfSemana);
+        break;
+
+      case 3:
+        confSemana[3] = (!confSemana[3]);
+        mostraSemana(ptConfSemana);
+        break;
+
+      case 4:
+        confSemana[4] = (!confSemana[4]);
+        mostraSemana(ptConfSemana);
+        break;
+    
+      case 5:
+        confSemana[5] = (!confSemana[5]);
+        mostraSemana(ptConfSemana);
+        break;
+
+      case 6:
+        confSemana[6] = (!confSemana[6]);
+        mostraSemana(ptConfSemana);
+        break;
+
+      case 7:
+          //TODO Salvar na memória EEPROM
+        break;
+     
+     default:
+       break;
+     }
+      btnMaisFlag = false;
     }
 
     if(btnSelectFlag)
     {
-      //TODO fazer a gravação na EEPROM
+      cont++;
+      if(cont == 8)
+      {
+        cont = 0;
+      }
+
+      switch (cont)
+      {
+      case 0:
+        lcd.setCursor(7,0); 
+        lcd.print(" Domingo ");
+        break;
+
+      case 1:
+        lcd.setCursor(7,0); 
+        lcd.print(" Segunda ");
+        break;
+
+      case 2:
+        lcd.setCursor(7,0); 
+        lcd.print(" Terca  ");
+        break;
+
+      case 3:
+        lcd.setCursor(7,0); 
+        lcd.print(" Quarta  ");
+        break;
+
+      case 4:
+        lcd.setCursor(7,0); 
+        lcd.print(" Quinta  ");
+        break;
+
+      case 5:
+        lcd.setCursor(7,0); 
+        lcd.print(" Sexta  ");
+        break;
+
+      case 6:
+        lcd.setCursor(7,0); 
+        lcd.print(" Sabado ");
+        break;
+
+      case 7:
+        lcd.setCursor(7,0); 
+        lcd.print(" Salvar ");
+        break;
+      }
+
+      btnSelectFlag = false;
     }
 
     if(btnEnterFlag)
@@ -1166,7 +1253,6 @@ void diaDaSemana(void)
       btnVoltaFlag = false;
       lcd.clear();
     }
-
   }
 }
 
@@ -1209,10 +1295,13 @@ int8_t localizarPosicaoLivre(void)    //Localiza posição livre para armazenar 
 void InitEEPROM(void)               //Roda apenas uma vez, quando módulo for resetado de fábrica/Módulo novo
 {
   char posicaoInicial = 0;
+  uint8_t mudaSemana[7] = {1, 1, 0, 1, 0, 1, 0};
+  uint8_t muda = 0;
 
-  posicaoInicial = EEPROM.read(EEPROM_INICIO);
+  posicaoInicial = EEPROM.read(EEPROM_INICIO); 
+  //posicaoInicial = 1;  // Habilita para reiniciar a configuração padrão
 
-  if(posicaoInicial == 255)
+  if(posicaoInicial == 1)
   {
     for(int i = EEPROM_INICIO; i < EEPROM_TAMANHO; i++)
     {
@@ -1221,7 +1310,11 @@ void InitEEPROM(void)               //Roda apenas uma vez, quando módulo for re
 
     for(int i = EEPROM_INICIO_SEMANA; i < EEPROM_INICIO_SEMANA + EEPROM_TAMANHO_SEMANA; i++)
     {
-      EEPROM.write(i,1);
+      if(muda < 7)
+      {
+        EEPROM.write(i,mudaSemana[muda]);
+        muda++;
+      }
     }
 
     EEPROM.commit();
