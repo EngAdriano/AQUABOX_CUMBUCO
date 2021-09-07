@@ -54,6 +54,8 @@ bool btnMaisFlag = false;   //Flag para botão Mais
 bool btnSelectFlag = false; //Flag para botão Menos
 bool btnEnterFlag = false;  //Flag para botão Enter
 bool btnVoltaFlag = false;  //Flag para botão Volta
+bool btnUmidadeFlag = true; //Flag
+uint8_t seletor = 0;
 
 //Objetos utilizados
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
@@ -66,6 +68,7 @@ EventButton btnSalva(BT_SALVA, LOW);
 EventButton btnEnter(BT_SELECT, LOW);
 EventButton btnVoltar(BT_VOLTA, LOW);
 CaixaDagua caixa(NIVEL_H, NIVEL_L);
+EventButton SensorUmidade(UMIDADE, LOW);
 
 //Protótipo de funções
 void lerFuncaoAtiva(void);
@@ -91,6 +94,11 @@ void BtnOnAutoMan(void);
 void BtnOffAutoMan(void);
 void AcionaMotor(void);
 void manualAutomatico(void);
+void BtnUmidadeOn(void);
+void BtnUmidadeOff(void);
+void LeSensores(void);
+void IrrigaManual(void);
+void AcionaCaixaManual(void);
 
 void setup() 
 {
@@ -114,6 +122,9 @@ void setup()
 
     btnAutoMan.setOnPressCallback(&BtnOnAutoMan);
     btnAutoMan.setOnReleaseCallback(&BtnOffAutoMan);
+
+    SensorUmidade.setOnPressCallback(&BtnUmidadeOn);
+    SensorUmidade.setOnReleaseCallback(&BtnUmidadeOff); //Comentar para funcionamento normal. Sensor de umidade so reseta em 00:00h
 
     btnSalva.setOnPressCallback(&BtnPressionadoMenos);
     //btnMenos.setOnReleaseCallback(&btnSoltoMenos);
@@ -174,10 +185,12 @@ void loop()
       break;
 
     case 6:
+      //Faz o On/Off do motor sozinho
       AcionaMotor();
       break;
 
     case 7:
+      //Seleciona Manual ou Automático
       manualAutomatico();
       break;
 
@@ -190,8 +203,6 @@ void loop()
 
 void lerFuncaoAtiva(void)
 {
-  //TODO fazer função para leitura do sensor de umidade.
-  
   if(!caixa.caixaVazia())
   {
     funcaoAtiva = 8;
@@ -283,7 +294,14 @@ void standyBy(void)
   {
     lerFuncaoAtiva();
 
+    SensorUmidade.process();
+
     now = rtc.now();
+
+    if(now.hour() == 0)
+    {
+      btnUmidadeFlag = false;
+    }
   
     lcd.setCursor(0,0); 
     lcd.print("Aquabox  Cumbuco");
@@ -355,7 +373,7 @@ void standyBy(void)
       hora = EEPROM.read((i * OFFSET) + 2);
       minutos = EEPROM.read((i * OFFSET) + 3);
 
-      if((setor != 0) && (hora == now.hour()) && (minutos == now.minute()))
+      if((setor != 0) && (hora == now.hour()) && (minutos == now.minute()) && (btnUmidadeFlag == true))
       {
         posicaoRelativaEEPROM = i;
         bool statusDiaSemana = 1;
@@ -368,7 +386,6 @@ void standyBy(void)
         }
       }
     }
-
   }
 }
 
@@ -796,7 +813,7 @@ void configuraHoraSetorIrriga(void)
           EEPROM.write(posicaoLivre + 1, hora);
           EEPROM.write(posicaoLivre + 2, minutos);
           EEPROM.write(posicaoLivre + 3, duracao);
-          //EEPROM.commit();  //Não esquecer de ativar para produção
+          EEPROM.commit();  //Não esquecer de ativar para produção
 
           lcd.setCursor(14,0);
           lcd.print("OK");
@@ -1038,7 +1055,7 @@ void deleteIrriga(void)
         EEPROM.write(posicaoRealDeleta + 2, 0);
         EEPROM.write(posicaoRealDeleta + 3, 0);
 
-        //EEPROM.commit();  //Reativar esta função quando o programa entrar em produção
+        EEPROM.commit();  //Reativar esta função quando o programa entrar em produção
 
         lcd.setCursor(15,0);
         lcd.print("OK");
@@ -1082,13 +1099,52 @@ void manualAutomatico(void)
 {
   while (funcaoAtiva == 7)
   {
-    btnAutoMan.process();
     if(btnAutoManFlag == true)
     {
-      lcd.setCursor(0,0); 
-      lcd.print("Aquabox  Cumbuco");
-      lcd.setCursor(0,1);
-      lcd.print("  Modo  Manual  ");
+      //Varredura no teclado
+      btnMais.process();
+      btnSalva.process();
+      btnEnter.process();
+      btnVoltar.process();
+      btnAutoMan.process();
+
+      if(btnEnterFlag) //Tecla de Seleção
+      {
+        seletor++;
+
+        if(seletor > 3)
+        {
+          seletor = 0;
+        }
+        btnEnterFlag = false;
+      }
+      
+      switch (seletor)
+      {
+      case 0: //Mostra o modo Manual
+        lcd.setCursor(0,0); 
+        lcd.print("Aquabox  Cumbuco");
+        lcd.setCursor(0,1);
+        lcd.print("  Modo  Manual  ");
+        break;
+
+      case 1: //Ler sensores
+        lcd.clear();
+        LeSensores();
+        break;
+
+      case 2: //aciona Irrigação manualmente
+        IrrigaManual();
+        break;
+
+      case 3: //Aciona caixa manualmente
+        AcionaCaixaManual();
+        break;
+      
+      default:
+        break;
+      }
+      
     }
     else
     {
@@ -1097,10 +1153,244 @@ void manualAutomatico(void)
   }
 }
 
+void LeSensores(void)
+{
+  bool sens[3] = {0, 0, 0};
+
+  while(seletor == 1)
+  {
+    btnAutoMan.process();
+    if(!(btnAutoManFlag == true))
+    {
+      funcaoAtiva = 0;
+      seletor = 0;
+      relays.offAll();
+    }
+
+    btnVoltar.process();
+    btnEnter.process();
+
+    if(btnEnterFlag)
+    {
+      seletor++;
+      btnEnterFlag = false;
+      lcd.clear();
+    }
+
+    if(btnVoltaFlag)
+    {
+      seletor = 0;
+      btnVoltaFlag = false;
+      lcd.clear();
+    }
+
+
+    sens[0] = (caixa.caixaVazia())/1;
+    sens[1] = (caixa.caixaCheia())/1;
+
+    SensorUmidade.process();
+    sens[2] = (btnUmidadeFlag)/1;
+
+    lcd.setCursor(0,0); 
+    lcd.print("Aquabox Sensores");
+    lcd.setCursor(0,1);
+    lcd.print("CxL:");
+    lcd.print(sens[0]);
+    lcd.print(" CxH:");
+    lcd.print(sens[1]);
+    lcd.print(" Um:");
+    lcd.print(sens[2]);
+  }
+}
+
+void IrrigaManual(void)
+{
+  uint8_t setorAtivo = 0;
+  bool manuaIrrigalFlag = false;
+
+  lcd.clear();  
+  lcd.setCursor(0,0); 
+  lcd.print("Aquabox  Manual ");
+  lcd.setCursor(0,1);
+  lcd.print("Setor: ");
+
+  while(seletor == 2)
+  {
+    //Varredura no teclado
+    btnMais.process();
+    btnSalva.process();
+    btnEnter.process();
+    btnVoltar.process();
+    btnAutoMan.process();
+
+    if(!(btnAutoManFlag == true))
+    {
+      funcaoAtiva = 0;
+      seletor = 0;
+      relays.off(3);
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+      relays.offAll();
+    }
+
+    if(btnEnterFlag)
+    {
+      seletor++;
+      btnEnterFlag = false;
+      lcd.clear();
+    }
+
+    if(btnVoltaFlag)
+    {
+      lcd.setCursor(0,1);
+      lcd.print(" Retornando...  ");
+      seletor = 0;
+      btnVoltaFlag = false;
+      relays.off(3);
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+      relays.off(0);
+      setorAtivo = 0;
+      manuaIrrigalFlag = false;
+      lcd.clear();
+    }
+
+    if(btnMaisFlag)
+    {
+      setorAtivo = 1;
+      btnMaisFlag = false;
+      manuaIrrigalFlag = !manuaIrrigalFlag;
+
+       relays.off(1);
+
+      if((setorAtivo == 1) && (manuaIrrigalFlag == true))
+      {
+        lcd.setCursor(7,1);
+        lcd.print("1 Irriga ");
+        relays.on(0);
+        vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+        relays.on(3);
+      }
+      else
+      {
+        lcd.setCursor(7,1);
+        lcd.print("          ");
+        relays.off(3);
+        vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+        relays.off(0);
+        setorAtivo = 0;
+        manuaIrrigalFlag = false;
+      }
+    }
+
+    if(btnSelectFlag)
+    {
+      setorAtivo = 2;
+      btnSelectFlag = false;
+      manuaIrrigalFlag = !manuaIrrigalFlag;
+
+      relays.off(0);
+
+      if((setorAtivo == 2) && (manuaIrrigalFlag == true))
+      {
+        lcd.setCursor(7,1);
+        lcd.print("2 Irriga ");
+        relays.on(1);
+        vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+        relays.on(3);
+      }
+      else
+      {
+        lcd.setCursor(7,1);
+        lcd.print("          ");
+        relays.off(3);
+        vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+        relays.off(1);
+        setorAtivo = 0;
+        manuaIrrigalFlag = false;
+      }
+    }
+  }
+}
+
+void AcionaCaixaManual()
+{
+  bool manualEncheFlag = false;
+
+  lcd.clear();  
+  lcd.setCursor(0,0); 
+  lcd.print("Aquabox  Manual ");
+  lcd.setCursor(0,1);
+  lcd.print("  Encher Caixa  ");
+
+  while(seletor == 3)
+  {
+    //Varredura no teclado
+    btnMais.process();
+    btnSalva.process();
+    btnEnter.process();
+    btnVoltar.process();
+    btnAutoMan.process();
+
+    if(!(btnAutoManFlag == true))
+    {
+      funcaoAtiva = 0;
+      seletor = 0;
+      relays.off(3);
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+      relays.offAll();
+    }
+
+    if(btnEnterFlag)
+    {
+      seletor = 0;
+      btnEnterFlag = false;
+      lcd.clear();
+    }
+
+    if(btnVoltaFlag)
+    {
+      lcd.setCursor(0,1);
+      lcd.print(" Retornando...  ");
+      seletor = 0;
+      btnVoltaFlag = false;
+      relays.off(3);
+      vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+      relays.off(2);
+      lcd.clear();
+    }
+
+    if(btnMaisFlag)
+    {
+      manualEncheFlag = !manualEncheFlag;
+      btnMaisFlag = false;
+
+      if(manualEncheFlag)
+      {
+        lcd.setCursor(0,1);
+        lcd.print(" Enchendo Caixa ");
+        relays.on(2);
+        vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+        relays.on(3);
+      } 
+      else
+      {
+        lcd.clear();  
+        lcd.setCursor(0,0); 
+        lcd.print("Aquabox  Manual ");
+        lcd.setCursor(0,1);
+        lcd.print("  Encher Caixa  ");
+        relays.off(3);
+        vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+        relays.off(2);
+      }
+    }
+  }
+}
+
+
 void diaDaSemana(void)
 {
   //Configurar o(s) dia(s) da semana que o sistema irriga
-  static char confSemana[7] = {0,0,0,0,0,0,0};
+  static char confSemana[7] = {1,1,0,1,0,1,0};
   char *ptConfSemana;
   static int8_t cont = -1;
   ptConfSemana = confSemana;
@@ -1109,7 +1399,7 @@ void diaDaSemana(void)
   lcd.setCursor(0,0); 
   lcd.print("Semana:         ");
   lcd.setCursor(0,1); 
-  lcd.print(" D1S1T0Q1Q0S1S0 ");  //Não esquecer de Alterar para zero
+  lcd.print(" D1S1T0Q1Q0S1S0 ");  
 
   for(int i = 0; i < EEPROM_TAMANHO_SEMANA; i++)
       {
@@ -1129,7 +1419,6 @@ void diaDaSemana(void)
 
     if(btnMaisFlag)
     {
-      //TODO fazer a configuração em memória
      switch (cont)
      {
       case 0:
@@ -1168,7 +1457,13 @@ void diaDaSemana(void)
         break;
 
       case 7:
-          //TODO Salvar na memória EEPROM
+        for (int i = 0; i < EEPROM_TAMANHO_SEMANA; i++)
+        {
+          EEPROM.write(EEPROM_INICIO_SEMANA + i,confSemana[i]);
+        }
+        EEPROM.commit(); //Descomentar para o programa final
+        lcd.setCursor(14,0); 
+        lcd.print("Ok");
         break;
      
      default:
@@ -1322,6 +1617,16 @@ void InitEEPROM(void)               //Roda apenas uma vez, quando módulo for re
   lcd.clear();
 }
 
+void BtnUmidadeOn(void)
+{
+  btnUmidadeFlag = false;
+}
+
+void BtnUmidadeOff(void)
+{
+  btnUmidadeFlag = true;
+}
+
 void BtnOnPiscina(void)
 {
   btnBombaPiscinaFlag = true;     //Ligar motor para tratamento da piscina
@@ -1361,3 +1666,4 @@ void BtnPressionadoVoltar(void)
 {
   btnVoltaFlag = true;            //Retorna a tela principal
 }
+
