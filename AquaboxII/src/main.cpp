@@ -124,7 +124,7 @@ void setup()
     btnAutoMan.setOnReleaseCallback(&BtnOffAutoMan);
 
     SensorUmidade.setOnPressCallback(&BtnUmidadeOn);
-    SensorUmidade.setOnReleaseCallback(&BtnUmidadeOff); //Comentar para funcionamento normal. Sensor de umidade so reseta em 00:00h
+    SensorUmidade.setOnReleaseCallback(&BtnUmidadeOff); 
 
     btnSalva.setOnPressCallback(&BtnPressionadoMenos);
     //btnMenos.setOnReleaseCallback(&btnSoltoMenos);
@@ -297,11 +297,6 @@ void standyBy(void)
     SensorUmidade.process();
 
     now = rtc.now();
-
-    if(now.hour() == 0)
-    {
-      btnUmidadeFlag = false;
-    }
   
     lcd.setCursor(0,0); 
     lcd.print("Aquabox  Cumbuco");
