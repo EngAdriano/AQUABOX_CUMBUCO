@@ -56,6 +56,8 @@ bool btnEnterFlag = false;  //Flag para botão Enter
 bool btnVoltaFlag = false;  //Flag para botão Volta
 bool btnUmidadeFlag = true; //Flag
 uint8_t seletor = 0;
+bool erro = false;
+//bool LigaIrrigacaoFlag = false;
 
 //Objetos utilizados
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
@@ -156,48 +158,66 @@ void loop()
     {
     case 0:
       //Modo de espera por comandos
+      lcd.begin(16, 2);
+      lcd.clear();
       standyBy();
       break;
 
     case 1:
       //Consulta do horário/setor de inrrigação
+      lcd.begin(16, 2);
+      lcd.clear();
       consultaIrriga();
       break;
 
     case 2:
       //Configuração do relógio
+      lcd.begin(16, 2);
+      lcd.clear();
       configuraRelogio();
       break;
 
     case 3:
       //Configuração dos horários/setor de Irrigação
+      lcd.begin(16, 2);
+      lcd.clear();
       configuraHoraSetorIrriga();
       break;
 
     case 4:
       //Altera do horário/setor de inrrigação
+      lcd.begin(16, 2);
+      lcd.clear();
       deleteIrriga();
       break;
 
     case 5:
       //Configuração do(s) dia(s) da semana para irrigação
+      lcd.begin(16, 2);
+      lcd.clear();
       diaDaSemana();
       break;
 
     case 6:
       //Faz o On/Off do motor sozinho
+      lcd.begin(16, 2);
+      lcd.clear();
       AcionaMotor();
       break;
 
     case 7:
       //Seleciona Manual ou Automático
+      lcd.begin(16, 2);
+      lcd.clear();
       manualAutomatico();
       break;
 
     case 8:
       //Aciona o enchimento da caixa d'água
+      lcd.begin(16, 2);
+      lcd.clear();
       encheCaixa();
-      break;    
+      break;
     }
 }
 
@@ -256,9 +276,15 @@ bool semanaDia(void)
 
 void encheCaixa(void)
 {
+  uint8_t setor = 0;
+  uint8_t hora = 0;
+  uint8_t minutos = 0;
+
+  DateTime now;
+
   while (funcaoAtiva == 8)
   {
-    if(!caixa.caixaCheia())
+    if((!caixa.caixaCheia()))
     {
       relays.off(3);
       vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
@@ -276,8 +302,36 @@ void encheCaixa(void)
       vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
       relays.on(3);
     }
+
+    
+    //Prioridade Irrigação
+    now = rtc.now();
+
+    for(int8_t i = 0; i < NUMERO_DE_MEMORIAS; i++)
+    {
+      setor = EEPROM.read((i * OFFSET) + 1);
+      hora = EEPROM.read((i * OFFSET) + 2);
+      minutos = EEPROM.read((i * OFFSET) + 3);
+
+      if((setor != 0) && (hora == now.hour()) && (minutos == now.minute()) && (btnUmidadeFlag == true))
+      {
+        posicaoRelativaEEPROM = i;
+        bool statusDiaSemana = 1;
+
+        statusDiaSemana = semanaDia();    //Checa se o dia da semana é válido para irrigar
+
+        if(statusDiaSemana == true)
+        {
+          relays.off(3);
+          vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+          relays.off(2);
+
+          irrigacao();
+        }
+      }
+    }
+
   }
-  
 }
 
 void standyBy(void)
@@ -1585,7 +1639,7 @@ int8_t localizarPosicaoLivre(void)    //Localiza posição livre para armazenar 
 void InitEEPROM(void)               //Roda apenas uma vez, quando módulo for resetado de fábrica/Módulo novo
 {
   char posicaoInicial = 0;
-  uint8_t mudaSemana[7] = {1, 1, 0, 1, 0, 1, 0};
+  uint8_t mudaSemana[7] = {1, 0, 1, 0, 1, 0, 1};
   uint8_t muda = 0;
 
   posicaoInicial = EEPROM.read(EEPROM_INICIO); 
