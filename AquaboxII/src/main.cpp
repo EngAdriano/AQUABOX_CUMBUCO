@@ -560,7 +560,7 @@ void configuraRelogio(void)
     {
       ajusteRelogio++;
 
-      if(ajusteRelogio > 4)
+      if(ajusteRelogio > 5)
       {
         ajusteRelogio = 0;
       }
