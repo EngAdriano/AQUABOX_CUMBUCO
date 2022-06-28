@@ -23,6 +23,8 @@
 #define NUMERO_DE_FUNCOES_ATIVAS (5)
 #define ENDERECO_DO_NUMERO_DE_REGISTROS (0)
 #define DELAY_RELES (3000)
+#define TEMPO_LIBERA_VAZAO (60) //Tempo para o motor religar em caso de erro
+#define TEMPO_ERRO_VAZAO (15) //Tempo de espera pelo sensor de nível baixo
 
 // --- Mapeamento de Hardware --- 
 #define RS          (33)   //IO33 Pino 8 do Módulo
@@ -57,7 +59,13 @@ bool btnVoltaFlag = false;  //Flag para botão Volta
 bool btnUmidadeFlag = true; //Flag
 uint8_t seletor = 0;
 bool erro = false;
-//bool LigaIrrigacaoFlag = false;
+bool vazao = false;
+// Inicia variáveis de tempo
+unsigned long millisCaixaLow = 0;
+unsigned long millisLiberaVazao = 0;
+uint8_t contMinutos = 0;
+uint8_t contVazao = 0;
+
 
 //Objetos utilizados
 LiquidCrystal lcd(RS, EN, D4, D5, D6, D7);
@@ -101,6 +109,9 @@ void BtnUmidadeOff(void);
 void LeSensores(void);
 void IrrigaManual(void);
 void AcionaCaixaManual(void);
+void verificaMinuto();
+void liberaVazao();
+void checkVazao();
 
 void setup() 
 {
@@ -223,7 +234,7 @@ void loop()
 
 void lerFuncaoAtiva(void)
 {
-  if(!caixa.caixaVazia())
+  if((!caixa.caixaVazia()) && vazao == false)
   {
     funcaoAtiva = 8;
     lcd.clear();
@@ -280,9 +291,11 @@ void encheCaixa(void)
   uint8_t hora = 0;
   uint8_t minutos = 0;
 
+  millisCaixaLow = millis();
+ 
   DateTime now;
 
-  while (funcaoAtiva == 8)
+  while (funcaoAtiva == 8 && vazao == false)
   {
     if((!caixa.caixaCheia()))
     {
@@ -301,9 +314,28 @@ void encheCaixa(void)
       relays.on(2);
       vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
       relays.on(3);
+
+      //TODO - Fazer função para proteger o motor,
+      //Contar 15 min se sensor de nével baixo não atuar
+      //Desligar o motor
+      //foi criada a variável de vazao(bool) para armazenar o erro.
+      //Limpa depois de 60 min
+
+      if(!caixa.caixaVazia())
+      {
+        verificaMinuto();
+        if(contMinutos > TEMPO_ERRO_VAZAO)
+        {
+          relays.off(3);
+          vTaskDelay(DELAY_RELES / portTICK_PERIOD_MS);
+          relays.off(2);
+          vazao = true;
+          contMinutos = 0;
+          funcaoAtiva = 0;
+        }
+      }
     }
 
-    
     //Prioridade Irrigação
     now = rtc.now();
 
@@ -334,6 +366,40 @@ void encheCaixa(void)
   }
 }
 
+void verificaMinuto()
+{
+  // Verifica se já passou 60000 milisegundos
+  if((millis() - millisCaixaLow) > 60000){
+    contMinutos++;
+    millisCaixaLow = millis();
+  }
+}
+
+void liberaVazao()
+{
+  if((millis() - millisLiberaVazao) > 60000){
+    contVazao++;
+    millisLiberaVazao = millis();
+  }
+}
+
+void checkVazao()
+{
+  if(!caixa.caixaVazia() && vazao == true)
+      {
+        liberaVazao();
+        if(contVazao > TEMPO_LIBERA_VAZAO)  
+        {
+          vazao = false;
+          contVazao = 0;
+        }
+      }
+      else
+      {
+        millisLiberaVazao = 0;
+      }
+}
+
 void standyBy(void)
 {
   // Criar um sistema para cancelar a irrigaçao. usar uma flag para isso.
@@ -344,9 +410,14 @@ void standyBy(void)
   
   DateTime now;
 
+  millisLiberaVazao = millis();
+
   while(funcaoAtiva == 0)
   {
+    
     lerFuncaoAtiva();
+
+    checkVazao();
 
     SensorUmidade.process();
 
